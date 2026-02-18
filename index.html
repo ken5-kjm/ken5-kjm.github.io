@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Study Mate</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- External Libs (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+    <!-- Google Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Poppins:wght@400;600;700&display=swap');
+
+        /* =========================================
+           MOBILE FIRST STYLES (Default)
+           ========================================= */
+
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --card-glass: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+
+            --primary-color: #38bdf8;
+            /* Sky Blue */
+            --primary-glow: rgba(56, 189, 248, 0.3);
+            --secondary-color: #34d399;
+            /* Emerald */
+            --danger-color: #f85149;
+            /* Red */
+
+            --text-main: #f1f5f9;
+            --text-dim: #94a3b8;
+
+            --sidebar-width: 280px;
+            --header-height: 70px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', 'Noto Sans JP', sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            /* Prevent horizontal scroll */
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* Ambient Glow */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -20%;
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.15), transparent 70%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* ===== Layout ===== */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-right: 1px solid var(--card-border);
+            padding: 2rem 1.5rem;
+            transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.open {
+            left: 0;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar h2 {
+            font-size: 1.5rem;
+            margin-bottom: 3rem;
+            color: var(--primary-color);
+            text-shadow: 0 0 10px var(--primary-glow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sidebar li {
+            padding: 1rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-dim);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar li:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            transform: translateX(5px);
+        }
+
+        .sidebar li.active {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--primary-color);
+        }
+
+        .sidebar li.active::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            margin-right: 12px;
+            box-shadow: 0 0 8px var(--primary-color);
+        }
+
+        /* Overlay */
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1500;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Main Content */
+        .content {
+            flex: 1;
+            width: 100%;
+            padding: 1rem;
+            /* Reduced padding for mobile */
+            padding-top: calc(var(--header-height) + 1rem);
+            transition: margin-left 0.3s;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: var(--header-height);
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--card-border);
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-toggle {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.8rem;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        /* Dashboard & Cards */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 100%;
+            /* Explicit 1 col */
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--card-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.25rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            /* Ensure fits in grid */
+        }
+
+        .card h3 {
+            font-size: 0.95rem;
+            color: var(--text-dim);
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Current Task */
+        .current-task-card {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(30, 41, 59, 0.8) 100%);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .current-task-card h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+            line-height: 1.3;
+        }
+
+        /* Timer */
+        .timer-display {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            margin: 0.5rem 0;
+        }
+
+        /* Buttons & Inputs */
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), #0ea5e9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-danger {
+            background: rgba(248, 81, 73, 0.1);
+            color: var(--danger-color);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            width: auto;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Tasks */
+        .task-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            padding: 1rem;
+            border-radius: 14px;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Sortable Styles */
+        .sortable-ghost {
+            opacity: 0.4;
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .sortable-drag {
+            background: rgba(30, 41, 59, 1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            opacity: 1;
+        }
+
+        /* Modal */
+        .modal-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 380px;
+            z-index: 10000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .modal-container.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* Rating Buttons */
+        .rating-group {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin: 1rem 0;
+        }
+
+        .rating-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 8px 0;
+            color: var(--text-dim);
+            text-align: center;
+        }
+
+        .rating-btn.selected {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Desktop */
+        @media (min-width: 768px) {
+            .content {
+                padding-top: 2rem;
+                padding-left: calc(var(--sidebar-width) + 2rem);
+                padding-right: 2rem;
+            }
+
+            header {
+                display: none;
+            }
+
+            .sidebar {
+                left: 0;
+                width: var(--sidebar-width);
+                background: rgba(15, 23, 42, 0.6);
+                box-shadow: none;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+
+            .current-task-card,
+            .card:last-child {
+                grid-column: 1 / -1;
+            }
+        }
+
+        /* Empty State */
+        #tasks-pool:empty::before,
+        #daily-schedule:empty::before {
+            content: "タスクはありません";
+            display: block;
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-dim);
+            border: 2px dashed var(--card-border);
+            border-radius: 12px;
+            pointer-events: none;
+        }
+
+        #daily-schedule:empty::before {
+            content: "ここにタスクをドラッグ";
+            background: rgba(255, 255, 255, 0.02);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <h2>🎓 Study Mate</h2>
+            <ul class="nav-links">
+                <li class="active" data-view="dashboard">ダッシュボード</li>
+                <li data-view="tasks">スケジュール</li>
+                <li data-view="data">データ</li>
+                <!-- Goals Removed -->
+                <li data-view="history">履歴</li>
+                <li data-view="settings">設定</li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+            <header>
+                <button id="menu-toggle" class="menu-toggle">☰</button>
+                <h2 id="view-title">ダッシュボード</h2>
+            </header>
+
+            <div id="app-view"></div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <div id="task-modal" class="modal-container"></div>
+
+    <script>
+        /**
+         * Study Mate v8.0
+         * - Single File
+         * - Background Timer (Web Worker)
+         * - Remvoed Long Term Goals
+         * - Added Delete Task
+         * - Improved Mobile UI
+         */
+        class StudyApp {
+            constructor() {
+                this.state = {
+                    view: 'dashboard',
+                    tasks: [], history: [], schedule: [],
+                    dailyGoalSlots: 4,
+                    settings: { pomodoroTime: 25, breakTime: 5 },
+                    streak: 0,
+                    timer: { minutes: 25, seconds: 0, isActive: false, isBreak: false }
+                };
+
+                window.app = this;
+                this.initWorker();
+                this.init();
+            }
+
+            initWorker() {
+                // Create inline worker
+                const workerCode = `
+                let timerId = null;
+                self.onmessage = function(e) {
+                    const { command, minutes, seconds } = e.data;
+                    if (command === 'start') {
+                        let totalSeconds = minutes * 60 + seconds;
+                        if(timerId) clearInterval(timerId);
+                        timerId = setInterval(() => {
+                            if (totalSeconds <= 0) {
+                                clearInterval(timerId);
+                                self.postMessage({ status: 'complete' });
+                            } else {
+                                totalSeconds--;
+                                const m = Math.floor(totalSeconds / 60);
+                                const s = totalSeconds % 60;
+                                self.postMessage({ status: 'tick', minutes: m, seconds: s });
+                            }
+                        }, 1000);
+                    } else if (command === 'stop') {
+                        if(timerId) clearInterval(timerId);
+                    }
+                };
+            `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                this.timerWorker = new Worker(URL.createObjectURL(blob));
+
+                this.timerWorker.onmessage = (e) => {
+                    const { status, minutes, seconds } = e.data;
+                    if (status === 'tick') {
+                        this.state.timer.minutes = minutes;
+                        this.state.timer.seconds = seconds;
+                        this.updateTimerDisplay();
+                    } else if (status === 'complete') {
+                        this.onTimerComplete();
+                    }
+                };
+            }
+
+            init() {
+                this.loadState();
+                this.initEvents();
+                this.render();
+            }
+
+            loadState() {
+                try {
+                    const saved = localStorage.getItem('study_mate_data');
+                    if (saved) {
+                        this.state = { ...this.state, ...JSON.parse(saved) };
+                        // Reset timer on load
+                        this.state.timer.isActive = false;
+                        this.state.timer.minutes = this.state.settings.pomodoroTime;
+                        this.state.timer.seconds = 0;
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            saveState() {
+                localStorage.setItem('study_mate_data', JSON.stringify(this.state));
+            }
+
+            initEvents() {
+                // Nav
+                document.querySelectorAll(".nav-links li").forEach(li => {
+                    li.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        if (li.dataset.view) this.switchView(li.dataset.view);
+                    });
+                });
+
+                // Sidebar
+                const toggle = document.getElementById("menu-toggle");
+                const sidebar = document.querySelector(".sidebar");
+                const overlay = document.getElementById("sidebar-overlay");
+                if (toggle && sidebar && overlay) {
+                    toggle.addEventListener("click", () => {
+                        sidebar.classList.add("open");
+                        overlay.classList.add("active");
+                    });
+                    overlay.addEventListener("click", () => {
+                        sidebar.classList.remove("open");
+                        overlay.classList.remove("active");
+                    });
+                }
+            }
+
+            switchView(viewName) {
+                this.state.view = viewName;
+                document.querySelectorAll(".nav-links li").forEach(li => {
+                    li.classList.toggle("active", li.dataset.view === viewName);
+                });
+                if (window.innerWidth < 768) {
+                    document.querySelector(".sidebar")?.classList.remove("open");
+                    document.getElementById("sidebar-overlay")?.classList.remove("active");
+                }
+                this.render();
+            }
+
+            render() {
+                const titleEl = document.getElementById("view-title");
+                if (titleEl) {
+                    const titles = { dashboard: 'ダッシュボード', tasks: 'スケジュール', data: '学習データ', history: '学習履歴', settings: '設定' };
+                    titleEl.textContent = titles[this.state.view] || 'Study Mate';
+                }
+
+                const container = document.getElementById("app-view");
+                if (!container) return;
+                document.getElementById('task-modal')?.classList.remove('active');
+
+                switch (this.state.view) {
+                    case 'dashboard': this.renderDashboard(container); break;
+                    case 'tasks': this.renderTasks(container); break;
+                    case 'data': this.renderData(container); break;
+                    case 'history': this.renderHistory(container); break;
+                    case 'settings': this.renderSettings(container); break;
+                    default: this.renderDashboard(container);
+                }
+            }
+
+            // --- DASHBOARD ---
+            renderDashboard(container) {
+                const completed = this.state.history.filter(h => new Date(h.completedAt).toDateString() === new Date().toDateString()).length;
+                const currentTask = this.state.tasks.find(t => t.id === this.state.schedule[0]);
+
+                // Avg Score Calculation
+                const todayHistory = this.state.history.filter(h => new Date(h.completedAt).toDateString() === new Date().toDateString());
+                let avg = '-';
+                if (todayHistory.length > 0) {
+                    const sum = todayHistory.reduce((a, b) => a + (b.score || 0), 0);
+                    avg = (sum / todayHistory.length).toFixed(1);
+                }
+
+                container.innerHTML = `
+                <div class="dashboard-grid">
+                    <!-- Current Task -->
+                    <div class="card current-task-card">
+                        <span class="badge" style="background:var(--primary-color); color:#0d1117;">NOW</span>
+                        <h2>${currentTask ? currentTask.content : 'タスクなし'}</h2>
+                        <p style="opacity:0.8; margin-bottom:1rem;">${currentTask ? currentTask.subject : 'スケジュールからタスクを追加してください'}</p>
+                        ${currentTask ? `<button class="btn btn-primary" style="width:auto;" onclick="app.showCompleteModal('${currentTask.id}')">完了チェック</button>` : ''}
+                    </div>
+
+                    <!-- Timer -->
+                    <div class="card timer-preview">
+                        <h3>TIMER</h3>
+                        <div class="timer-display" id="dash-timer-display">${this.formatTime(this.state.timer.minutes, this.state.timer.seconds)}</div>
+                        <button class="btn btn-primary" onclick="app.toggleTimer()">${this.state.timer.isActive ? '一時停止' : 'スタート'}</button>
+                        ${this.state.timer.isBreak ? '<p style="color:var(--secondary-color); margin-top:5px;">☕ 休憩中</p>' : ''}
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="card">
+                        <h3>進捗</h3>
+                        <div style="font-size:1.8rem; font-weight:bold; text-align:center;">
+                            ${completed} <span style="font-size:1rem; opacity:0.6;">/ ${this.state.dailyGoalSlots}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>今日の平均スコア</h3>
+                        <div style="font-size:1.8rem; font-weight:bold; text-align:center; color:#e3b341;">${avg}</div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="card" style="grid-column: 1 / -1;">
+                        <h3>学習リズム</h3>
+                         <div style="height:200px;"><canvas id="progressChart"></canvas></div>
+                    </div>
+                </div>
+            `;
+                setTimeout(() => this.initCharts(), 100);
+            }
+
+            // --- TASKS ---
+            renderTasks(container) {
+                container.innerHTML = `
+                <div class="card">
+                    <h3>目標設定</h3>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                       <input type="number" id="goal-input" value="${this.state.dailyGoalSlots}" style="width:80px; margin:0;" onchange="app.state.dailyGoalSlots = parseInt(this.value); app.saveState();">
+                       <span>コマ</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>タスクストック (未実施)</h3>
+                    <div id="tasks-pool" style="min-height:80px;">
+                        ${this.renderTaskList(this.state.tasks.filter(t => !t.completed && !this.state.schedule.includes(t.id)))}
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:1rem;" onclick="app.showNewTaskModal()">+ 新しいタスク</button>
+                </div>
+
+                <div class="card">
+                    <h3>今日のスケジュール (ドラッグして並び替え)</h3>
+                    <div id="daily-schedule" style="min-height:100px; background:rgba(0,0,0,0.15); border-radius:14px; padding:10px;">
+                        ${this.renderTaskList(this.state.schedule.map(id => this.state.tasks.find(t => t.id === id)).filter(t => t && !t.completed), true)}
+                    </div>
+                </div>
+            `;
+                this.initSortable();
+            }
+
+            renderTaskList(list, isSchedule = false) {
+                if (list.length === 0) return '';
+                return list.map(t => `
+                <div class="task-item" data-id="${t.id}" ${!isSchedule ? `onclick="app.addToSchedule('${t.id}')" style="cursor:pointer;"` : ''}>
+                    <div style="flex:1;">
+                        <span class="badge">${t.subject}</span>
+                        <div style="font-weight:600;">${t.content}</div>
+                        <div style="font-size:0.8rem; color:var(--text-dim); margin-top:4px;">⏳ ${t.plannedSlots}コマ</div>
+                    </div>
+                    <button class="btn btn-danger btn-sm" style="margin-left:10px;" onclick="event.stopPropagation(); app.deleteTask('${t.id}')">削除</button>
+                </div>
+            `).join('');
+            }
+
+            addToSchedule(id) {
+                this.state.schedule.push(id);
+                this.saveState();
+                this.render();
+            }
+
+            deleteTask(id) {
+                if (!confirm("このタスクを完全に削除しますか？")) return;
+                this.state.tasks = this.state.tasks.filter(t => t.id !== id);
+                this.state.schedule = this.state.schedule.filter(sid => sid !== id); // Remove from schedule too
+                this.saveState();
+                this.render();
+            }
+
+            // --- DATA ANALYSIS ---
+            renderData(container) {
+                // Calculations
+                const history = this.state.history;
+                const today = new Date().toDateString();
+                const completedTotal = history.length;
+
+                // Today's Avg Score
+                const todayTasks = history.filter(h => new Date(h.completedAt).toDateString() === today);
+                const todayAvg = todayTasks.length ? (todayTasks.reduce((a, b) => a + (b.score || 0), 0) / todayTasks.length).toFixed(1) : '-';
+
+                // Weekly Trend (Last 7 days)
+                const last7Days = [...Array(7)].map((_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (6 - i));
+                    return d.toDateString();
+                });
+                const weeklyScores = last7Days.map(dateStr => {
+                    const dayTasks = history.filter(h => new Date(h.completedAt).toDateString() === dateStr);
+                    return dayTasks.length ? (dayTasks.reduce((a, b) => a + (b.score || 0), 0) / dayTasks.length) : 0;
+                });
+
+                // Weekly Averages (Last 4 weeks)
+                const getWeekAvg = (offset) => {
+                    const start = new Date();
+                    start.setDate(start.getDate() - start.getDay() + 1 - (offset * 7)); // Monday start
+                    start.setHours(0, 0, 0, 0);
+                    const end = new Date(start);
+                    end.setDate(end.getDate() + 6);
+                    end.setHours(23, 59, 59, 999);
+
+                    const weekTasks = history.filter(h => {
+                        const d = new Date(h.completedAt);
+                        return d >= start && d <= end;
+                    });
+                    const avg = weekTasks.length ? (weekTasks.reduce((a, b) => a + (b.score || 0), 0) / weekTasks.length) : 0;
+                    return { label: `${start.getMonth() + 1}/${start.getDate()}~`, score: avg.toFixed(1) };
+                };
+                const last4Weeks = [3, 2, 1, 0].map(i => getWeekAvg(i));
+
+                container.innerHTML = `
+                <div class="dashboard-grid">
+                     <div class="card">
+                        <h3>本日の平均スコア</h3>
+                        <div style="font-size:2.5rem; font-weight:bold; text-align:center; color:#e3b341;">${todayAvg}</div>
+                        <p style="text-align:center; color:var(--text-dim); margin-top:5px;">完了タスク: ${todayTasks.length}</p>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>累計完了タスク</h3>
+                         <div style="font-size:2.5rem; font-weight:bold; text-align:center; color:var(--primary-color);">${completedTotal}</div>
+                         <p style="text-align:center; color:var(--text-dim); margin-top:5px;">全期間の合計</p>
+                    </div>
+
+                    <div class="card" style="grid-column: 1 / -1;">
+                        <h3>週間スコア推移 (過去7日間)</h3>
+                        <div style="height:250px;"><canvas id="weeklyScoreChart"></canvas></div>
+                    </div>
+
+                    <div class="card" style="grid-column: 1 / -1;">
+                        <h3>直近4週間の平均スコア</h3>
+                         <div style="display:flex; justify-content:space-around; align-items:flex-end; height:150px; padding:10px 0;">
+                            ${last4Weeks.map(w => `
+                                <div style="text-align:center; display:flex; flex-direction:column; justify-content:flex-end; height:100%; width:20%;">
+                                    <div style="background:var(--secondary-color); width:100%; border-radius:4px 4px 0 0; opacity:0.8; height:${Math.max(w.score * 20, 5)}%; transition:height 0.5s;"></div>
+                                    <div style="margin-top:5px; font-weight:bold;">${w.score}</div>
+                                    <div style="font-size:0.7rem; color:var(--text-dim);">${w.label}</div>
+                                </div>
+                            `).join('')}
+                         </div>
+                    </div>
+                </div>
+                `;
+
+                setTimeout(() => {
+                    new Chart(document.getElementById('weeklyScoreChart'), {
+                        type: 'line',
+                        data: {
+                            labels: last7Days.map(d => { const date = new Date(d); return `${date.getMonth() + 1}/${date.getDate()}`; }),
+                            datasets: [{
+                                label: '平均スコア',
+                                data: weeklyScores,
+                                borderColor: '#38bdf8',
+                                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true, max: 4, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                                x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                            },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                }, 100);
+            }
+
+
+
+            // --- HISTORY & SETTINGS ---
+            renderHistory(container) {
+                const list = this.state.history.slice().reverse();
+                container.innerHTML = `<div class="card"><h3>履歴</h3>
+                ${list.map(h => `<div class="task-item" style="border-left: 5px solid ${h.reviewNeeded ? 'var(--danger-color)' : 'transparent'};">
+                    <div style="flex:1;">
+                        <b>${h.subject}</b>: ${h.content}
+                        <div style="font-size:0.8rem; color:var(--text-dim);">${new Date(h.completedAt).toLocaleString()}</div>
+                        ${h.reviewNeeded ? '<span style="color:var(--danger-color); font-weight:bold; font-size:0.8rem;">⚠ 復習必要</span>' : ''}
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="color:#e3b341; font-weight:bold; display:block;">${h.grade}</span>
+                        <button class="btn btn-sm" style="margin-top:5px; background:rgba(255,255,255,0.1);" onclick="app.editHistory('${h.id}')">編集</button>
+                    </div>
+                </div>`).join('')}
+            </div>`;
+            }
+
+            editHistory(id) {
+                const h = this.state.history.find(x => x.id === id);
+                if (!h) return;
+                const m = document.getElementById('task-modal');
+                m.innerHTML = `
+                <h3>履歴編集</h3>
+                <label>実施内容</label>
+                <input id="h-con" value="${h.content}">
+                <label style="display:flex; align-items:center; gap:8px; margin:1rem 0; cursor:pointer;">
+                    <input type="checkbox" id="h-rev" ${h.reviewNeeded ? 'checked' : ''}> 復習が必要
+                </label>
+                <button class="btn btn-primary" onclick="app.updateHistory('${id}')">保存</button>
+                <button class="btn" style="margin-top:10px; background:transparent;" onclick="document.getElementById('task-modal').classList.remove('active')">キャンセル</button>
+            `;
+                m.classList.add('active');
+            }
+
+            updateHistory(id) {
+                const h = this.state.history.find(x => x.id === id);
+                if (h) {
+                    h.content = document.getElementById('h-con').value;
+                    h.reviewNeeded = document.getElementById('h-rev').checked;
+                    this.saveState();
+                    this.render();
+                }
+                document.getElementById('task-modal').classList.remove('active');
+            }
+
+            renderSettings(container) {
+                container.innerHTML = `
+                <div class="card">
+                    <h3>タイマー設定</h3>
+                    <label>集中(分)</label><input type="number" id="s-pom" value="${this.state.settings.pomodoroTime}">
+                    <label>休憩(分)</label><input type="number" id="s-brk" value="${this.state.settings.breakTime}">
+                    <button class="btn btn-primary" onclick="app.saveSettings()">保存</button>
+                    <button class="btn btn-danger" style="margin-top:2rem;" onclick="app.resetAll()">全データ削除</button>
+                </div>
+            `;
+            }
+
+            // --- ACTIONS ---
+            toggleTimer() {
+                if (this.state.timer.isActive) {
+                    this.timerWorker.postMessage({ command: 'stop' });
+                    this.state.timer.isActive = false;
+                } else {
+                    this.timerWorker.postMessage({
+                        command: 'start',
+                        minutes: this.state.timer.minutes,
+                        seconds: this.state.timer.seconds
+                    });
+                    this.state.timer.isActive = true;
+                }
+                this.render();
+            }
+
+            updateTimerDisplay() {
+                const el = document.getElementById('dash-timer-display');
+                if (el) el.textContent = this.formatTime(this.state.timer.minutes, this.state.timer.seconds);
+            }
+
+            onTimerComplete() {
+                this.state.timer.isActive = false;
+                this.timerWorker.postMessage({ command: 'stop' });
+
+                const m = document.getElementById('task-modal');
+                // Switch mode check
+                if (!this.state.timer.isBreak) {
+                    // Pomodoro Done -> Break or Skip
+                    m.innerHTML = `
+                    <h3>お疲れ様でした！</h3>
+                    <p style="text-align:center; margin-bottom:1.5rem;">集中時間が終了しました。</p>
+                    <button class="btn btn-primary" onclick="app.startBreak()">☕ 休憩する (${this.state.settings.breakTime}分)</button>
+                    <button class="btn" style="margin-top:10px; background:rgba(255,255,255,0.1);" onclick="app.skipBreak()">⏭ 休憩をスキップして次へ</button>
+                `;
+                } else {
+                    // Break Done -> Next
+                    m.innerHTML = `
+                    <h3>リフレッシュ完了！</h3>
+                    <p style="text-align:center; margin-bottom:1.5rem;">休憩時間が終了しました。</p>
+                    <button class="btn btn-primary" onclick="app.startPomodoro()">🔥 次のタスクへ</button>
+                `;
+                }
+                m.classList.add('active');
+                this.render();
+            }
+
+            startBreak() {
+                this.state.timer.isBreak = true;
+                this.state.timer.minutes = this.state.settings.breakTime;
+                this.state.timer.seconds = 0;
+                this.startTimerDirectly();
+                document.getElementById('task-modal').classList.remove('active');
+            }
+
+            skipBreak() {
+                this.startPomodoro();
+            }
+
+            startPomodoro() {
+                this.state.timer.isBreak = false;
+                this.state.timer.minutes = this.state.settings.pomodoroTime;
+                this.state.timer.seconds = 0;
+                document.getElementById('task-modal').classList.remove('active');
+                this.render(); // Just reset, don't auto start user said "3. Start timer... 7. Repeat" usually implies manual start or continuous? 
+                // User workflow says "6. Move to next task. 7. Repeat"
+                // Let's just reset timer and let user start it effectively.
+            }
+
+            startTimerDirectly() {
+                this.timerWorker.postMessage({
+                    command: 'start',
+                    minutes: this.state.timer.minutes,
+                    seconds: this.state.timer.seconds
+                });
+                this.state.timer.isActive = true;
+                this.render();
+            }
+
+            showNewTaskModal() {
+                const m = document.getElementById('task-modal');
+                m.innerHTML = `
+                <h3>タスク追加</h3>
+                <input id="n-sub" placeholder="科目 (例: 数学)">
+                <input id="n-con" placeholder="内容 (例: P.20-30)">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">
+                    <label style="color:var(--text-dim); font-size:0.9rem;">予想コマ数:</label>
+                    <input type="number" id="n-slots" value="1" min="1" style="width:60px; margin-bottom:0;">
+                </div>
+                <button class="btn btn-primary" onclick="app.addTask()">追加</button>
+                <button class="btn" style="margin-top:10px; background:transparent;" onclick="document.getElementById('task-modal').classList.remove('active')">キャンセル</button>
+            `;
+                m.classList.add('active');
+            }
+
+            addTask() {
+                const sub = document.getElementById('n-sub').value;
+                const con = document.getElementById('n-con').value;
+                const slots = parseInt(document.getElementById('n-slots').value) || 1;
+                if (!con) return;
+
+                const baseId = Date.now();
+
+                if (slots > 1) {
+                    for (let i = 1; i <= slots; i++) {
+                        this.state.tasks.push({
+                            id: (baseId + i).toString(),
+                            subject: sub || 'その他',
+                            content: `${con} (${i}/${slots})`,
+                            createdAt: new Date(),
+                            completed: false,
+                            plannedSlots: 1
+                        });
+                    }
+                } else {
+                    this.state.tasks.push({
+                        id: baseId.toString(),
+                        subject: sub || 'その他',
+                        content: con,
+                        createdAt: new Date(),
+                        completed: false,
+                        plannedSlots: 1
+                    });
+                }
+
+                this.saveState();
+                document.getElementById('task-modal').classList.remove('active');
+                this.render();
+            }
+
+            showCompleteModal(id) {
+                const m = document.getElementById('task-modal');
+                m.innerHTML = `
+                <h3>タスク完了評価</h3>
+                <div class="rating-group">
+                    ${['AA', 'A', 'B', 'C', 'D'].map((g, i) => `<button class="rating-btn" onclick="app.finishTask('${id}', '${g}', ${4 - i})">${g}</button>`).join('')}
+                </div>
+                <button class="btn" onclick="document.getElementById('task-modal').classList.remove('active')">キャンセル</button>
+            `;
+                m.classList.add('active');
+            }
+
+            finishTask(id, grade, score) {
+                const t = this.state.tasks.find(x => x.id === id);
+                if (t) {
+                    t.completed = true;
+                    t.completedAt = new Date();
+                    t.grade = grade;
+                    t.score = score;
+
+                    // Add to history (Archive)
+                    this.state.history.push(t);
+
+                    // Remove from active tasks and schedule
+                    this.state.tasks = this.state.tasks.filter(x => x.id !== id);
+                    this.state.schedule = this.state.schedule.filter(x => x !== id);
+
+                    this.state.streak++;
+                    this.saveState();
+                }
+                document.getElementById('task-modal').classList.remove('active');
+                this.render();
+            }
+
+            saveSettings() {
+                this.state.settings.pomodoroTime = parseInt(document.getElementById('s-pom').value);
+                this.state.settings.breakTime = parseInt(document.getElementById('s-brk').value);
+                this.saveState();
+                this.render();
+            }
+
+            resetAll() {
+                if (confirm("全データが消えます。よろしいですか？")) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            }
+
+            formatTime(m, s) { return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
+
+            initSortable() {
+                if (typeof Sortable === 'undefined') return;
+                const opts = {
+                    group: 'shared', animation: 200, delay: 150, delayOnTouchOnly: true,
+                    forceFallback: true, fallbackOnBody: true,
+                    ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+                    onEnd: () => {
+                        this.state.schedule = Array.from(document.querySelectorAll('#daily-schedule .task-item')).map(e => e.dataset.id);
+                        this.saveState();
+                    }
+                };
+                const el1 = document.getElementById('tasks-pool');
+                const el2 = document.getElementById('daily-schedule');
+                if (el1) Sortable.create(el1, opts);
+                if (el2) Sortable.create(el2, opts);
+            }
+
+            initCharts() {
+                const ctx = document.getElementById('progressChart');
+                if (!ctx || typeof Chart === 'undefined') return;
+                // Simplified chart logic for robustness
+                const labels = [], dataC = [], dataS = [];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(); d.setDate(d.getDate() - i);
+                    labels.push(d.toLocaleDateString('ja-JP', { weekday: 'short' }));
+                    const dayStr = d.toDateString();
+                    const items = this.state.history.filter(h => new Date(h.completedAt).toDateString() === dayStr);
+                    dataC.push(items.length);
+                    const s = items.reduce((a, b) => a + (b.score || 0), 0);
+                    dataS.push(items.length ? (s / items.length).toFixed(1) : null);
+                }
+                if (this.chartInstance) this.chartInstance.destroy();
+                this.chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: '完了', data: dataC, backgroundColor: 'rgba(56,189,248,0.5)', yAxisID: 'y', order: 2 },
+                            { label: 'スコア', data: dataS, type: 'line', borderColor: '#e3b341', yAxisID: 'y1', order: 1 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            y: { display: true, beginAtZero: true },
+                            y1: { display: true, position: 'right', min: 0, max: 4 }
+                        }
+                    }
+                });
+            }
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+            new StudyApp();
+        });
+    </script>
+</body>
+
+</html>
