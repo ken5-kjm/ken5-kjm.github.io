@@ -429,44 +429,34 @@
         #daily-schedule:empty::before {
             content: "ここにタスクをドラッグ";
             background: rgba(255, 255, 255, 0.02);
+        }
 
-            /* Background Player */
-            .bg-player {
-                position: fixed;
-                bottom: -500px;
-                right: 0;
-                width: 1px;
-                height: 1px;
-                opacity: 0;
-                pointer-events: none;
+        .bgm-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(52, 211, 153, 0.15);
+            color: var(--secondary-color);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
             }
 
-            .bgm-status {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                padding: 4px 10px;
-                background: rgba(52, 211, 153, 0.15);
-                color: var(--secondary-color);
-                border-radius: 20px;
-                font-size: 0.8rem;
-                margin-top: 8px;
-                animation: pulse 2s infinite;
+            50% {
+                opacity: 1;
             }
 
-            @keyframes pulse {
-                0% {
-                    opacity: 0.6;
-                }
-
-                50% {
-                    opacity: 1;
-                }
-
-                100% {
-                    opacity: 0.6;
-                }
+            100% {
+                opacity: 0.6;
             }
+        }
     </style>
 </head>
 
@@ -510,44 +500,93 @@
          * - Added Delete Task
          * - Improved Mobile UI
          */
+        class JazzGenerator {
+            constructor() {
+                this.audioCtx = null;
+                this.bgmPlaying = false;
+                this.interval = null;
+                // C4=60, D4=62, E4=64, F4=65, G4=67, A4=69, B4=71
+                this.scales = [
+                    [60, 62, 64, 67, 69], // Pattern 1: Pentatonic
+                    [62, 65, 67, 69, 72], // Pattern 2: Dm
+                    [65, 69, 71, 72, 76]  // Pattern 3: Fmaj7 (Jazz vibe)
+                ];
+            }
+
+            init() {
+                if (!this.audioCtx) {
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            play() {
+                this.init();
+                if (this.bgmPlaying) return;
+                this.bgmPlaying = true;
+
+                const speed = 400 + Math.random() * 400; // Random tempo
+                const scale = this.scales[Math.floor(Math.random() * this.scales.length)];
+
+                this.interval = setInterval(() => {
+                    if (!this.bgmPlaying) return;
+                    this.playNote(scale[Math.floor(Math.random() * scale.length)]);
+                }, speed);
+
+                // Media Session
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: '休憩BGM - Study Mate Jazz',
+                        artist: 'Study Mate Auto Gen',
+                        album: 'Relax'
+                    });
+                }
+            }
+
+            playNote(midi) {
+                const now = this.audioCtx.currentTime;
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+
+                // Electric Piano vibe: Sine + Triangle hook
+                osc.type = Math.random() > 0.5 ? 'sine' : 'triangle';
+                osc.frequency.setValueAtTime(440 * Math.pow(2, (midi - 69) / 12), now);
+
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 1.5);
+            }
+
+            stop() {
+                this.bgmPlaying = false;
+                if (this.interval) clearInterval(this.interval);
+                this.interval = null;
+            }
+        }
+
         class StudyApp {
             constructor() {
                 this.state = {
                     view: 'dashboard',
                     tasks: [], history: [], schedule: [],
                     dailyGoalSlots: 4,
-                    settings: { pomodoroTime: 25, breakTime: 5, youtubeId: 'jfKfPfyJRdk' },
+                    settings: { pomodoroTime: 25, breakTime: 5 },
                     streak: 0,
                     timer: { minutes: 25, seconds: 0, isActive: false, isBreak: false }
                 };
 
                 window.app = this;
+                this.jazz = new JazzGenerator();
                 this.initWorker();
-                this.initYoutube();
                 this.init();
             }
 
-            initYoutube() {
-                const tag = document.createElement('script');
-                tag.src = "https://www.youtube.com/iframe_api";
-                const firstScriptTag = document.getElementsByTagName('script')[0];
-                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-                window.onYouTubeIframeAPIReady = () => {
-                    this.ytPlayer = new YT.Player('yt-player', {
-                        height: '1',
-                        width: '1',
-                        videoId: this.state.settings.youtubeId || 'jfKfPfyJRdk',
-                        playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1 },
-                        events: {
-                            'onReady': (event) => { console.log("YouTube Player Ready"); }
-                        }
-                    });
-                };
-            }
-
             initWorker() {
-                // Create inline worker
+                // Inline Worker to ensure it works universally
                 const workerCode = `
                 let timerId = null;
                 self.onmessage = function(e) {
@@ -596,13 +635,14 @@
                 try {
                     const saved = localStorage.getItem('study_mate_data');
                     if (saved) {
-                        this.state = { ...this.state, ...JSON.parse(saved) };
-                        // Reset timer on load
-                        this.state.timer.isActive = false;
+                        const parsed = JSON.parse(saved);
+                        // Merge but don't overwrite volatile state
+                        this.state = { ...this.state, ...parsed };
+                        this.state.timer.isActive = false; // Always start paused on load
                         this.state.timer.minutes = this.state.settings.pomodoroTime;
                         this.state.timer.seconds = 0;
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) { console.error("Load failed", e); }
             }
 
             saveState() {
@@ -937,16 +977,11 @@
                     <div class="form-group"><label>集中(分)</label><input type="number" id="s-pom" value="${this.state.settings.pomodoroTime}"></div>
                     <div class="form-group"><label>休憩(分)</label><input type="number" id="s-brk" value="${this.state.settings.breakTime}"></div>
                     
-                    <h3 style="margin-top:2rem;">BGM設定 (YouTube)</h3>
-                    <div class="form-group">
-                        <label>YouTube URL</label>
-                        <input type="text" id="s-ytid" value="${this.state.settings.youtubeId ? 'https://www.youtube.com/watch?v=' + this.state.settings.youtubeId : ''}" placeholder="ここにURLを貼り付け">
-                        <p style="font-size:0.75rem; color:var(--text-dim); margin-bottom:10px;">ブラウザのURLをそのまま全部貼り付けてください。</p>
-                        <div style="display:flex; gap:10px;">
-                            <button class="btn btn-sm" style="flex:1; background:var(--secondary-color);" onclick="app.previewBGM()">再生プレビュー</button>
-                            <button class="btn btn-sm" style="flex:1; background:rgba(255,255,255,0.1);" onclick="app.stopBGM()">BGM停止</button>
-                        </div>
-                    </div>
+                    <h3 style="margin-top:2rem;">BGM設定</h3>
+                    <p style="font-size:0.9rem; color:var(--text-dim); margin-bottom:1rem;">
+                        休憩中は自動的に生成されたジャズBGMが流れます。<br>
+                        バックグラウンド状態でも動作しやすくなっています。
+                    </p>
 
                     <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="app.saveSettings()">設定を保存</button>
                     <button class="btn btn-danger" style="margin-top:2rem;" onclick="app.resetAll()">全データ削除</button>
@@ -954,40 +989,13 @@
             `;
             }
 
-            extractYoutubeId(url) {
-                if (!url) return null;
-                // Stronger regex to capture 11-char ID
-                const regExp = /^.*(?:youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#\&\?]{11}).*/;
-                const match = url.match(regExp);
-                // If it looks like an 11-char ID already, return it, otherwise try to extract
-                if (url.length === 11 && !url.includes('/') && !url.includes('.')) return url;
-                return (match && match[1]) ? match[1] : url;
-            }
-
             // --- BGM Actions ---
             playBGM() {
-                if (this.ytPlayer && this.ytPlayer.playVideo) {
-                    this.ytPlayer.playVideo();
-                }
+                this.jazz.play();
             }
 
             stopBGM() {
-                if (this.ytPlayer && this.ytPlayer.stopVideo) {
-                    this.ytPlayer.stopVideo();
-                }
-            }
-
-            previewBGM() {
-                const inputVal = document.getElementById('s-ytid').value.trim();
-                const id = this.extractYoutubeId(inputVal);
-                if (!id) return;
-
-                if (this.ytPlayer && this.ytPlayer.loadVideoById) {
-                    console.log("Previewing YouTube ID:", id);
-                    this.ytPlayer.loadVideoById(id);
-                    this.ytPlayer.playVideo();
-                    alert("音楽をプレビューします。停止するには「BGM停止」ボタンを押してください。");
-                }
+                this.jazz.stop();
             }
 
             // --- ACTIONS ---
@@ -995,7 +1003,7 @@
                 if (this.state.timer.isActive) {
                     this.timerWorker.postMessage({ command: 'stop' });
                     this.state.timer.isActive = false;
-                    if (this.state.timer.isBreak) this.stopBGM();
+                    this.stopBGM(); // Stop on pause anyway
                 } else {
                     this.timerWorker.postMessage({
                         command: 'start',
@@ -1163,16 +1171,6 @@
             saveSettings() {
                 this.state.settings.pomodoroTime = parseInt(document.getElementById('s-pom').value) || 25;
                 this.state.settings.breakTime = parseInt(document.getElementById('s-brk').value) || 5;
-                const inputVal = document.getElementById('s-ytid').value.trim();
-                const newYtId = this.extractYoutubeId(inputVal);
-
-                if (newYtId && newYtId !== this.state.settings.youtubeId) {
-                    this.state.settings.youtubeId = newYtId;
-                    if (this.ytPlayer && this.ytPlayer.loadVideoById) {
-                        this.ytPlayer.loadVideoById(newYtId);
-                        this.ytPlayer.stopVideo();
-                    }
-                }
 
                 this.saveState();
                 alert("設定を保存しました。");
@@ -1249,5 +1247,3 @@
 </body>
 
 </html>
-
-
