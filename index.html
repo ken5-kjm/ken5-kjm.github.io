@@ -956,9 +956,12 @@
 
             extractYoutubeId(url) {
                 if (!url) return null;
-                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                // Stronger regex to capture 11-char ID
+                const regExp = /^.*(?:youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#\&\?]{11}).*/;
                 const match = url.match(regExp);
-                return (match && match[2].length === 11) ? match[2] : url; // 抽出失敗時はそのまま返す（ID直接入力の互換性のため）
+                // If it looks like an 11-char ID already, return it, otherwise try to extract
+                if (url.length === 11 && !url.includes('/') && !url.includes('.')) return url;
+                return (match && match[1]) ? match[1] : url;
             }
 
             // --- BGM Actions ---
@@ -975,9 +978,12 @@
             }
 
             previewBGM() {
-                const id = document.getElementById('s-ytid').value.trim();
+                const inputVal = document.getElementById('s-ytid').value.trim();
+                const id = this.extractYoutubeId(inputVal);
                 if (!id) return;
+
                 if (this.ytPlayer && this.ytPlayer.loadVideoById) {
+                    console.log("Previewing YouTube ID:", id);
                     this.ytPlayer.loadVideoById(id);
                     this.ytPlayer.playVideo();
                     alert("音楽をプレビューします。停止するには「BGM停止」ボタンを押してください。");
@@ -1243,4 +1249,5 @@
 </body>
 
 </html>
+
 
