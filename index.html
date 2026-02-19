@@ -720,8 +720,29 @@
                     avg = (sum / todayHistory.length).toFixed(1);
                 }
 
+                // Review Reminders
+                const reviewTasks = this.state.history.filter(h => h.reviewNeeded);
+
                 container.innerHTML = `
                 <div class="dashboard-grid">
+                    <!-- Review Reminders -->
+                    ${reviewTasks.length > 0 ? `
+                        <div class="card" style="grid-column: 1 / -1; border: 1px solid rgba(227, 179, 65, 0.3); background: rgba(227, 179, 65, 0.05);">
+                            <h3 style="color:#e3b341; font-size:1rem; margin-bottom:1rem;">📒 復習リマインド</h3>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                ${reviewTasks.map(t => `
+                                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:8px;">
+                                        <div>
+                                            <span style="font-size:0.8rem; color:var(--text-dim);">${t.subject}</span>
+                                            <div style="font-weight:600;">${t.content}</div>
+                                        </div>
+                                        <button class="btn btn-sm" style="background:var(--secondary-color); padding:4px 8px; font-size:0.7rem;" onclick="app.completeReview('${t.id}')">完了</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
                     <!-- Current Task -->
                     <div class="card current-task-card">
                         <span class="badge" style="background:var(--primary-color); color:#0d1117;">NOW</span>
@@ -820,6 +841,15 @@
                 this.state.schedule = this.state.schedule.filter(sid => sid !== id); // Remove from schedule too
                 this.saveState();
                 this.render();
+            }
+
+            completeReview(id) {
+                const h = this.state.history.find(x => x.id === id);
+                if (h) {
+                    h.reviewNeeded = false;
+                    this.saveState();
+                    this.render();
+                }
             }
 
             // --- DATA ANALYSIS ---
@@ -977,12 +1007,6 @@
                     <div class="form-group"><label>集中(分)</label><input type="number" id="s-pom" value="${this.state.settings.pomodoroTime}"></div>
                     <div class="form-group"><label>休憩(分)</label><input type="number" id="s-brk" value="${this.state.settings.breakTime}"></div>
                     
-                    <h3 style="margin-top:2rem;">BGM設定</h3>
-                    <p style="font-size:0.9rem; color:var(--text-dim); margin-bottom:1rem;">
-                        休憩中は自動的に生成されたジャズBGMが流れます。<br>
-                        バックグラウンド状態でも動作しやすくなっています。
-                    </p>
-
                     <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="app.saveSettings()">設定を保存</button>
                     <button class="btn btn-danger" style="margin-top:2rem;" onclick="app.resetAll()">全データ削除</button>
                 </div>
@@ -1026,26 +1050,31 @@
                 this.timerWorker.postMessage({ command: 'stop' });
                 this.stopBGM();
 
-                const m = document.getElementById('task-modal');
-                // Switch mode check
                 if (!this.state.timer.isBreak) {
-                    // Pomodoro Done -> Break or Skip
+                    // Pomodoro Done -> Auto Start Break
+                    this.startBreak();
+                    const m = document.getElementById('task-modal');
                     m.innerHTML = `
-                    <h3>お疲れ様でした！</h3>
-                    <p style="text-align:center; margin-bottom:1.5rem;">集中時間が終了しました。</p>
-                    <button class="btn btn-primary" onclick="app.startBreak()">☕ 休憩する (${this.state.settings.breakTime}分)</button>
-                    <button class="btn" style="margin-top:10px; background:rgba(255,255,255,0.1);" onclick="app.skipBreak()">⏭ 休憩をスキップして次へ</button>
-                `;
+                        <h3>お疲れ様でした！</h3>
+                        <p style="text-align:center; margin-bottom:1.5rem;">集中時間が終了しました。<br>自動的に休憩を開始します。</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('task-modal').classList.remove('active')">OK</button>
+                    `;
+                    m.classList.add('active');
                 } else {
-                    // Break Done -> Next
+                    // Break Done -> Show Modal to return
+                    this.state.timer.minutes = this.state.settings.pomodoroTime;
+                    this.state.timer.seconds = 0;
+                    this.state.timer.isBreak = false;
+
+                    const m = document.getElementById('task-modal');
                     m.innerHTML = `
-                    <h3>リフレッシュ完了！</h3>
-                    <p style="text-align:center; margin-bottom:1.5rem;">休憩時間が終了しました。</p>
-                    <button class="btn btn-primary" onclick="app.startPomodoro()">🔥 次のタスクへ</button>
-                `;
+                        <h3>リフレッシュ完了！</h3>
+                        <p style="text-align:center; margin-bottom:1.5rem;">休憩時間が終了しました。</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('task-modal').classList.remove('active')">🔥 次のタスクへ</button>
+                    `;
+                    m.classList.add('active');
+                    this.render();
                 }
-                m.classList.add('active');
-                this.render();
             }
 
             startBreak() {
@@ -1141,18 +1170,25 @@
                 <div class="rating-group">
                     ${['AA', 'A', 'B', 'C', 'D'].map((g, i) => `<button class="rating-btn" onclick="app.finishTask('${id}', '${g}', ${4 - i})">${g}</button>`).join('')}
                 </div>
-                <button class="btn" onclick="document.getElementById('task-modal').classList.remove('active')">キャンセル</button>
+                <div style="margin-top:1.5rem; text-align:center;">
+                    <label style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <input type="checkbox" id="rev-check"> 復習が必要
+                    </label>
+                </div>
+                <button class="btn" style="margin-top:1rem;" onclick="document.getElementById('task-modal').classList.remove('active')">キャンセル</button>
             `;
                 m.classList.add('active');
             }
 
             finishTask(id, grade, score) {
+                const reviewNeeded = document.getElementById('rev-check')?.checked || false;
                 const t = this.state.tasks.find(x => x.id === id);
                 if (t) {
                     t.completed = true;
                     t.completedAt = new Date();
                     t.grade = grade;
                     t.score = score;
+                    t.reviewNeeded = reviewNeeded;
 
                     // Add to history (Archive)
                     this.state.history.push(t);
@@ -1171,6 +1207,12 @@
             saveSettings() {
                 this.state.settings.pomodoroTime = parseInt(document.getElementById('s-pom').value) || 25;
                 this.state.settings.breakTime = parseInt(document.getElementById('s-brk').value) || 5;
+
+                // Sync UI if timer is not active
+                if (!this.state.timer.isActive) {
+                    this.state.timer.minutes = this.state.timer.isBreak ? this.state.settings.breakTime : this.state.settings.pomodoroTime;
+                    this.state.timer.seconds = 0;
+                }
 
                 this.saveState();
                 alert("設定を保存しました。");
@@ -1243,7 +1285,6 @@
             new StudyApp();
         });
     </script>
-    <div id="yt-player" class="bg-player"></div>
 </body>
 
 </html>
