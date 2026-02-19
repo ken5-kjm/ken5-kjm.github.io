@@ -939,9 +939,9 @@
                     
                     <h3 style="margin-top:2rem;">BGM設定 (YouTube)</h3>
                     <div class="form-group">
-                        <label>動画ID</label>
-                        <input type="text" id="s-ytid" value="${this.state.settings.youtubeId || ''}" placeholder="例: jfKfPfyJRdk">
-                        <p style="font-size:0.75rem; color:var(--text-dim); margin-bottom:10px;">URLの「v=」の後ろの文字列を入力してください。</p>
+                        <label>YouTube URL</label>
+                        <input type="text" id="s-ytid" value="${this.state.settings.youtubeId ? 'https://www.youtube.com/watch?v=' + this.state.settings.youtubeId : ''}" placeholder="ここにURLを貼り付け">
+                        <p style="font-size:0.75rem; color:var(--text-dim); margin-bottom:10px;">ブラウザのURLをそのまま全部貼り付けてください。</p>
                         <div style="display:flex; gap:10px;">
                             <button class="btn btn-sm" style="flex:1; background:var(--secondary-color);" onclick="app.previewBGM()">再生プレビュー</button>
                             <button class="btn btn-sm" style="flex:1; background:rgba(255,255,255,0.1);" onclick="app.stopBGM()">BGM停止</button>
@@ -952,6 +952,13 @@
                     <button class="btn btn-danger" style="margin-top:2rem;" onclick="app.resetAll()">全データ削除</button>
                 </div>
             `;
+            }
+
+            extractYoutubeId(url) {
+                if (!url) return null;
+                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                const match = url.match(regExp);
+                return (match && match[2].length === 11) ? match[2] : url; // 抽出失敗時はそのまま返す（ID直接入力の互換性のため）
             }
 
             // --- BGM Actions ---
@@ -1150,7 +1157,8 @@
             saveSettings() {
                 this.state.settings.pomodoroTime = parseInt(document.getElementById('s-pom').value) || 25;
                 this.state.settings.breakTime = parseInt(document.getElementById('s-brk').value) || 5;
-                const newYtId = document.getElementById('s-ytid').value.trim();
+                const inputVal = document.getElementById('s-ytid').value.trim();
+                const newYtId = this.extractYoutubeId(inputVal);
 
                 if (newYtId && newYtId !== this.state.settings.youtubeId) {
                     this.state.settings.youtubeId = newYtId;
@@ -1235,3 +1243,4 @@
 </body>
 
 </html>
+
