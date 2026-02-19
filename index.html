@@ -444,18 +444,73 @@
             animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-            0% {
-                opacity: 0.6;
-            }
+        /* Subject colors helper */
+        .badge.math {
+            background: #58a6ff;
+            color: #0d1117;
+        }
 
-            50% {
-                opacity: 1;
-            }
+        .badge.english {
+            background: #3fb950;
+            color: #0d1117;
+        }
 
-            100% {
-                opacity: 0.6;
-            }
+        .badge.science {
+            background: #d2a8ff;
+            color: #0d1117;
+        }
+
+        .badge.history {
+            background: #f0883e;
+            color: #0d1117;
+        }
+
+        .badge.other {
+            background: #8b949e;
+            color: #0d1117;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* Nav Icon Spacing */
+        .nav-links li i {
+            margin-right: 12px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Hover Effects */
+        .card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .task-item {
+            transition: background 0.2s;
+        }
+
+        .task-item:hover {
+            background: rgba(255, 255, 255, 0.06);
         }
     </style>
 </head>
@@ -467,12 +522,11 @@
         <nav class="sidebar">
             <h2>🎓 Study Mate</h2>
             <ul class="nav-links">
-                <li class="active" data-view="dashboard">ダッシュボード</li>
-                <li data-view="tasks">スケジュール</li>
-                <li data-view="data">データ</li>
-                <!-- Goals Removed -->
-                <li data-view="history">履歴</li>
-                <li data-view="settings">設定</li>
+                <li class="active" data-view="dashboard"><i>🏠</i> ダッシュボード</li>
+                <li data-view="tasks"><i>📅</i> スケジュール</li>
+                <li data-view="data"><i>📊</i> 学習データ</li>
+                <li data-view="history"><i>📜</i> 履歴</li>
+                <li data-view="settings"><i>⚙️</i> 設定</li>
             </ul>
         </nav>
 
@@ -574,7 +628,7 @@
                     view: 'dashboard',
                     tasks: [], history: [], schedule: [],
                     dailyGoalSlots: 4,
-                    settings: { pomodoroTime: 25, breakTime: 5 },
+                    settings: { pomodoroTime: 25, breakTime: 5, bgmEnabled: true },
                     streak: 0,
                     timer: { minutes: 25, seconds: 0, isActive: false, isBreak: false }
                 };
@@ -751,29 +805,53 @@
                         ${currentTask ? `<button class="btn btn-primary" style="width:auto;" onclick="app.showCompleteModal('${currentTask.id}')">完了チェック</button>` : ''}
                     </div>
 
-                    <!-- Timer -->
-                    <div class="card timer-preview">
-                        <h3>TIMER</h3>
-                        <div class="timer-display" id="dash-timer-display">${this.formatTime(this.state.timer.minutes, this.state.timer.seconds)}</div>
-                        <button class="btn btn-primary" onclick="app.toggleTimer()">${this.state.timer.isActive ? '一時停止' : 'スタート'}</button>
-                        ${this.state.timer.isBreak ? `
-                            <div class="bgm-status">
-                                <span>☕ 休憩中 (BGM再生中)</span>
+                    <!-- Timer Card -->
+                    ${(!currentTask && !this.state.timer.isBreak) ? `
+                        <div class="card" style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:3rem 1rem; border:2px dashed var(--card-border); opacity:0.8;">
+                             <div style="font-size:3rem; margin-bottom:1rem;">📓</div>
+                             <h3 style="color:var(--text-main); font-size:1.2rem; text-transform:none;">今日のスケジュールを立てましょう</h3>
+                             <p style="color:var(--text-dim); margin-bottom:1.5rem;">タスクを追加するとタイマーが利用可能になります</p>
+                             <button class="btn btn-primary" style="width:auto; padding:10px 30px;" onclick="app.switchView('tasks')">+ タスクを追加する</button>
+                        </div>
+                    ` : `
+                        <div class="card timer-preview">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                <h3>${this.state.timer.isBreak ? 'BREAK' : 'FOCUS'}</h3>
+                                <span style="font-size:0.8rem; color:var(--text-dim);">${this.state.timer.isBreak ? '☕' : '🔥'}</span>
                             </div>
-                        ` : ''}
-                    </div>
+                            <div class="timer-display" id="dash-timer-display">${this.formatTime(this.state.timer.minutes, this.state.timer.seconds)}</div>
+                            <div class="progress-container">
+                                <div class="progress-bar" id="timer-progress"></div>
+                            </div>
+                            <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="app.toggleTimer()">${this.state.timer.isActive ? '一時停止' : 'スタート'}</button>
+                            ${this.state.timer.isBreak ? `
+                                <div class="bgm-status" style="margin-bottom: 10px;">
+                                    <span>☕ 休憩中 ${this.state.settings.bgmEnabled ? '(BGM再生中)' : ''}</span>
+                                </div>
+                                <button class="btn btn-sm" style="background:rgba(255,255,255,0.1); width:100%;" onclick="app.skipBreak()">⏭ 休憩をスキップ</button>
+                            ` : ''}
+                        </div>
+                    `}
 
                     <!-- Stats -->
                     <div class="card">
-                        <h3>進捗</h3>
-                        <div style="font-size:1.8rem; font-weight:bold; text-align:center;">
-                            ${completed} <span style="font-size:1rem; opacity:0.6;">/ ${this.state.dailyGoalSlots}</span>
+                        <h3>今日の目標</h3>
+                        <div style="font-size:2.2rem; font-weight:bold; text-align:center; position:relative; margin-top:0.5rem;">
+                            ${completed} <span style="font-size:1rem; opacity:0.6; font-weight:normal;">/ ${this.state.dailyGoalSlots}</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:rgba(0,0,0,0.2); border-radius:4px; margin-top:15px; overflow:hidden;">
+                            <div style="width:${Math.min((completed / this.state.dailyGoalSlots) * 100, 100)}%; height:100%; background:var(--secondary-color); box-shadow: 0 0 10px var(--secondary-color);"></div>
                         </div>
                     </div>
                     
                     <div class="card">
                         <h3>今日の平均スコア</h3>
-                        <div style="font-size:1.8rem; font-weight:bold; text-align:center; color:#e3b341;">${avg}</div>
+                        <div style="display:flex; align-items:center; justify-content:center; gap:15px; height:100%;">
+                            <div style="font-size:2.5rem; font-weight:bold; color:#e3b341;">${avg}</div>
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                ${['AA', 'A', 'B', 'C', 'D'].map(g => `<span style="font-size:0.7rem; color:${avg === '-' ? 'var(--text-dim)' : (this.getScoreFromGrade(g).toFixed(1) <= parseFloat(avg) ? '#e3b341' : 'var(--text-dim)')};">${g}</span>`).join('')}
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Chart -->
@@ -783,7 +861,10 @@
                     </div>
                 </div>
             `;
-                setTimeout(() => this.initCharts(), 100);
+                setTimeout(() => {
+                    this.initCharts();
+                    this.updateProgressBar();
+                }, 100);
             }
 
             // --- TASKS ---
@@ -817,16 +898,33 @@
 
             renderTaskList(list, isSchedule = false) {
                 if (list.length === 0) return '';
-                return list.map(t => `
-                <div class="task-item" data-id="${t.id}" ${!isSchedule ? `onclick="app.addToSchedule('${t.id}')" style="cursor:pointer;"` : ''}>
-                    <div style="flex:1;">
-                        <span class="badge">${t.subject}</span>
-                        <div style="font-weight:600;">${t.content}</div>
-                        <div style="font-size:0.8rem; color:var(--text-dim); margin-top:4px;">⏳ ${t.plannedSlots}コマ</div>
+                return list.map(t => {
+                    const subjectClass = this.getSubjectClass(t.subject);
+                    return `
+                    <div class="task-item" data-id="${t.id}" ${!isSchedule ? `onclick="app.addToSchedule('${t.id}')" style="cursor:pointer;"` : ''}>
+                        <div style="flex:1;">
+                            <span class="badge ${subjectClass}">${t.subject}</span>
+                            <div style="font-weight:600;">${t.content}</div>
+                            <div style="font-size:0.8rem; color:var(--text-dim); margin-top:4px;">⏳ ${t.plannedSlots}コマ</div>
+                        </div>
+                        <button class="btn btn-danger btn-sm" style="margin-left:10px;" onclick="event.stopPropagation(); app.deleteTask('${t.id}')">削除</button>
                     </div>
-                    <button class="btn btn-danger btn-sm" style="margin-left:10px;" onclick="event.stopPropagation(); app.deleteTask('${t.id}')">削除</button>
-                </div>
-            `).join('');
+                `;
+                }).join('');
+            }
+
+            getSubjectClass(subject) {
+                if (!subject) return 'other';
+                if (subject.includes('数')) return 'math';
+                if (subject.includes('英')) return 'english';
+                if (subject.includes('理') || subject.includes('科')) return 'science';
+                if (subject.includes('歴') || subject.includes('史') || subject.includes('文') || subject.includes('社')) return 'history';
+                return 'other';
+            }
+
+            getScoreFromGrade(grade) {
+                const map = { 'AA': 4, 'A': 3, 'B': 2, 'C': 1, 'D': 0 };
+                return map[grade] || 0;
             }
 
             addToSchedule(id) {
@@ -1007,7 +1105,11 @@
                     <div class="form-group"><label>集中(分)</label><input type="number" id="s-pom" value="${this.state.settings.pomodoroTime}"></div>
                     <div class="form-group"><label>休憩(分)</label><input type="number" id="s-brk" value="${this.state.settings.breakTime}"></div>
                     
-                    <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="app.saveSettings()">設定を保存</button>
+                    <label style="display:flex; align-items:center; gap:8px; margin: 1rem 0; cursor:pointer;">
+                        <input type="checkbox" id="s-bgm" ${this.state.settings.bgmEnabled ? 'checked' : ''}> 休憩中にBGMを流す
+                    </label>
+
+                    <button class="btn btn-primary" style="margin-top:0.5rem;" onclick="app.saveSettings()">設定を保存</button>
                     <button class="btn btn-danger" style="margin-top:2rem;" onclick="app.resetAll()">全データ削除</button>
                 </div>
             `;
@@ -1015,7 +1117,9 @@
 
             // --- BGM Actions ---
             playBGM() {
-                this.jazz.play();
+                if (this.state.settings.bgmEnabled) {
+                    this.jazz.play();
+                }
             }
 
             stopBGM() {
@@ -1027,8 +1131,14 @@
                 if (this.state.timer.isActive) {
                     this.timerWorker.postMessage({ command: 'stop' });
                     this.state.timer.isActive = false;
-                    this.stopBGM(); // Stop on pause anyway
+                    this.stopBGM();
                 } else {
+                    // Check if focus and no task
+                    if (!this.state.timer.isBreak && this.state.schedule.length === 0) {
+                        alert("今日のスケジュールを立ててください。");
+                        this.switchView('tasks');
+                        return;
+                    }
                     this.timerWorker.postMessage({
                         command: 'start',
                         minutes: this.state.timer.minutes,
@@ -1043,6 +1153,16 @@
             updateTimerDisplay() {
                 const el = document.getElementById('dash-timer-display');
                 if (el) el.textContent = this.formatTime(this.state.timer.minutes, this.state.timer.seconds);
+                this.updateProgressBar();
+            }
+
+            updateProgressBar() {
+                const bar = document.getElementById('timer-progress');
+                if (!bar) return;
+                const total = (this.state.timer.isBreak ? this.state.settings.breakTime : this.state.settings.pomodoroTime) * 60;
+                const current = this.state.timer.minutes * 60 + this.state.timer.seconds;
+                const percent = total > 0 ? ((total - current) / total) * 100 : 0;
+                bar.style.width = `${percent}%`;
             }
 
             onTimerComplete() {
@@ -1051,15 +1171,19 @@
                 this.stopBGM();
 
                 if (!this.state.timer.isBreak) {
-                    // Pomodoro Done -> Auto Start Break
-                    this.startBreak();
-                    const m = document.getElementById('task-modal');
-                    m.innerHTML = `
-                        <h3>お疲れ様でした！</h3>
-                        <p style="text-align:center; margin-bottom:1.5rem;">集中時間が終了しました。<br>自動的に休憩を開始します。</p>
-                        <button class="btn btn-primary" onclick="document.getElementById('task-modal').classList.remove('active')">OK</button>
-                    `;
-                    m.classList.add('active');
+                    const currentTask = this.state.tasks.find(t => t.id === this.state.schedule[0]);
+                    if (currentTask) {
+                        this.showCompleteModal(currentTask.id, true);
+                    } else {
+                        const m = document.getElementById('task-modal');
+                        m.innerHTML = `
+                            <h3>集中時間終了！</h3>
+                            <p style="text-align:center; margin-bottom:1.5rem;">お疲れ様でした。<br>休憩を開始しますか？</p>
+                            <button class="btn btn-primary" onclick="app.startBreak()">☕ 休憩を開始する</button>
+                            <button class="btn" style="margin-top:10px; background:rgba(255,255,255,0.05);" onclick="app.skipBreak()">⏭ 休憩をスキップ</button>
+                        `;
+                        m.classList.add('active');
+                    }
                 } else {
                     // Break Done -> Show Modal to return
                     this.state.timer.minutes = this.state.settings.pomodoroTime;
@@ -1163,27 +1287,52 @@
                 this.render();
             }
 
-            showCompleteModal(id) {
+            showCompleteModal(id, triggerBreak = false) {
+                const t = this.state.tasks.find(x => x.id === id);
                 const m = document.getElementById('task-modal');
                 m.innerHTML = `
-                <h3>タスク完了評価</h3>
-                <div class="rating-group">
-                    ${['AA', 'A', 'B', 'C', 'D'].map((g, i) => `<button class="rating-btn" onclick="app.finishTask('${id}', '${g}', ${4 - i})">${g}</button>`).join('')}
+                <h3>タスク完了</h3>
+                <div style="margin-bottom:1.5rem;">
+                    <label style="font-size:0.8rem; color:var(--text-dim);">やった内容の修正</label>
+                    <input type="text" id="edit-content" value="${t ? t.content : ''}" style="margin-bottom:0.5rem;">
                 </div>
+                
+                <p style="font-size:0.9rem; margin-bottom:0.5rem;">自己評価</p>
+                <div class="rating-group">
+                    ${['AA', 'A', 'B', 'C', 'D'].map((g, i) => `<button class="rating-btn" onclick="app.finishTask('${id}', '${g}', ${4 - i}, ${triggerBreak})">${g}</button>`).join('')}
+                </div>
+                
+                <div style="background:rgba(255,255,255,0.05); padding:1rem; border-radius:12px; margin-top:1.5rem;">
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+                        <input type="checkbox" id="add-followup" onchange="document.getElementById('followup-extra').style.display = this.checked ? 'block' : 'none'"> 計画を修正 (続きのタスクを追加)
+                    </label>
+                    <div id="followup-extra" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+                        <input id="f-con" placeholder="続きの内容 (例: P.30~)" style="font-size:0.9rem; padding:8px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <label style="font-size:0.8rem; color:var(--text-dim);">追加コマ数:</label>
+                            <input type="number" id="f-slots" value="1" min="1" style="width:60px; margin:0; padding:5px;">
+                        </div>
+                    </div>
+                </div>
+
                 <div style="margin-top:1.5rem; text-align:center;">
-                    <label style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <label style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size:0.9rem;">
                         <input type="checkbox" id="rev-check"> 復習が必要
                     </label>
                 </div>
-                <button class="btn" style="margin-top:1rem;" onclick="document.getElementById('task-modal').classList.remove('active')">キャンセル</button>
+                <button class="btn" style="margin-top:1rem; background:transparent;" onclick="document.getElementById('task-modal').classList.remove('active')">キャンセル</button>
             `;
                 m.classList.add('active');
             }
 
-            finishTask(id, grade, score) {
+            finishTask(id, grade, score, triggerBreak = false) {
                 const reviewNeeded = document.getElementById('rev-check')?.checked || false;
+                const editedContent = document.getElementById('edit-content')?.value;
+                const addFollowup = document.getElementById('add-followup')?.checked || false;
+
                 const t = this.state.tasks.find(x => x.id === id);
                 if (t) {
+                    if (editedContent) t.content = editedContent;
                     t.completed = true;
                     t.completedAt = new Date();
                     t.grade = grade;
@@ -1191,7 +1340,25 @@
                     t.reviewNeeded = reviewNeeded;
 
                     // Add to history (Archive)
-                    this.state.history.push(t);
+                    this.state.history.push({ ...t });
+
+                    // Handle Followup
+                    if (addFollowup) {
+                        const fCon = document.getElementById('f-con').value || (t.content + " (続き)");
+                        const fSlots = parseInt(document.getElementById('f-slots').value) || 1;
+                        const newId = Date.now().toString();
+                        const newTask = {
+                            id: newId,
+                            subject: t.subject,
+                            content: fCon,
+                            createdAt: new Date(),
+                            completed: false,
+                            plannedSlots: fSlots
+                        };
+                        this.state.tasks.push(newTask);
+                        // Insert at the beginning of the schedule (right after current)
+                        this.state.schedule.unshift(newId);
+                    }
 
                     // Remove from active tasks and schedule
                     this.state.tasks = this.state.tasks.filter(x => x.id !== id);
@@ -1201,12 +1368,26 @@
                     this.saveState();
                 }
                 document.getElementById('task-modal').classList.remove('active');
-                this.render();
+                if (triggerBreak) {
+                    // Show choice
+                    const m = document.getElementById('task-modal');
+                    m.innerHTML = `
+                        <h3>評価ありがとうございます！</h3>
+                        <p style="text-align:center; margin-bottom:1.5rem;">タスクが完了しました。<br>このまま休憩に入りますか？</p>
+                        <button class="btn btn-primary" onclick="app.startBreak()">☕ 休憩を開始する</button>
+                        <button class="btn" style="margin-top:10px; background:rgba(255,255,255,0.05);" onclick="app.skipBreak()">⏭ 休憩をスキップ</button>
+                    `;
+                    m.classList.add('active');
+                    this.render();
+                } else {
+                    this.render();
+                }
             }
 
             saveSettings() {
                 this.state.settings.pomodoroTime = parseInt(document.getElementById('s-pom').value) || 25;
                 this.state.settings.breakTime = parseInt(document.getElementById('s-brk').value) || 5;
+                this.state.settings.bgmEnabled = document.getElementById('s-bgm').checked;
 
                 // Sync UI if timer is not active
                 if (!this.state.timer.isActive) {
